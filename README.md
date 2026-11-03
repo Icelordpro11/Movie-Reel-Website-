@@ -2,6 +2,7 @@
 
 <img src="Docs/Preview.png" alt="Movie Discovery App Preview" width="100%"/>
 
+</div>
 
 ---
 
@@ -280,18 +281,17 @@ public static function taste(int $userId): array
 
 ```php
 // api/lib/MovieApi.php
-public static function feed(int $page = 1): array
+public static function feed(int $page = 1, int $seed = 0): array
 {
-    if (!self::enabled()) return self::shuffledFallback();   // offline demo mode
+    if (!self::enabled()) return $page <= 1 ? self::shuffledFallback() : [];
+    $realPage = (($seed + $page - 1) % 500) + 1;             // sequential, offset per session
     $res = self::get('/discover/movie', [
         'sort_by'        => 'popularity.desc',
         'vote_count.gte' => 150,
-        'page'           => random_int(1, 300),              // different every time
+        'page'           => $realPage,
     ]);
-    if (!$res || empty($res['results'])) return self::shuffledFallback();
-    $movies = array_map([self::class, 'shape'], $res['results']);
-    shuffle($movies);
-    return $movies;
+    if (!$res || empty($res['results'])) return [];
+    return array_map([self::class, 'shape'], $res['results']);
 }
 ```
 
