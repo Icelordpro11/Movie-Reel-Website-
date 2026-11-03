@@ -1,0 +1,514 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+<meta name="theme-color" content="#000000">
+<title>Movies</title>
+<style>
+:root{
+  --bg:#000; --panel:#0d0d0d; --panel2:#161616; --line:#262626;
+  --text:#fff; --muted:#8a8a8a; --accent:#ffffff; --on-accent:#000;
+}
+*{box-sizing:border-box;-webkit-tap-highlight-color:transparent;}
+html,body{height:100%;margin:0;}
+body{font-family:system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;background:var(--bg);color:var(--text);overflow:hidden;overscroll-behavior:none;}
+button{font-family:inherit;cursor:pointer;color:inherit;background:none;border:none;}
+img{display:block;}
+svg{display:block;}
+.hidden{display:none!important;}
+input{font-family:inherit;}
+
+/* ---------- App shell ---------- */
+#app{height:100dvh;display:flex;flex-direction:column;}
+#view{flex:1;overflow:hidden;position:relative;}
+.view{position:absolute;inset:0;overflow-y:auto;overscroll-behavior:contain;}
+.view::-webkit-scrollbar{width:0;}
+.pad{padding:22px 16px 96px;max-width:640px;margin:0 auto;}
+
+/* ---------- Discover / reels ---------- */
+#reels{scroll-snap-type:y mandatory;}
+.reel{height:100dvh;scroll-snap-align:start;position:relative;display:flex;align-items:flex-end;justify-content:center;}
+.reel .bd{position:absolute;inset:0;background-size:cover;background-position:center;
+  background-color:#0b0b0b;background-image:radial-gradient(130% 90% at 70% 15%,#1d1d1d 0,#000 70%);}
+.reel .bd.noimg{background-image:radial-gradient(130% 90% at 70% 15%,#242424 0,#000 70%);}
+.reel .scrim{position:absolute;inset:0;background:linear-gradient(180deg,#0006 0%,#0000 22%,#0000 48%,#000c 80%,#000 100%);}
+.reel-inner{position:relative;width:min(620px,100%);padding:0 20px calc(108px + env(safe-area-inset-bottom));display:flex;gap:16px;align-items:flex-end;}
+.reel-main{flex:1;min-width:0;}
+.poster-mini{width:84px;flex:0 0 84px;aspect-ratio:2/3;border-radius:10px;object-fit:cover;border:1px solid #ffffff22;background:#111;}
+.genres{display:flex;flex-wrap:wrap;gap:6px;margin:0 0 10px;}
+.gchip{font-size:.7rem;letter-spacing:.04em;text-transform:uppercase;padding:4px 10px;border-radius:2px;background:#ffffff14;border:1px solid #ffffff22;}
+.reel h1{margin:0 0 8px;font-size:1.9rem;line-height:1.05;font-weight:800;letter-spacing:-.01em;}
+.meta{display:flex;align-items:center;gap:12px;color:#d8d8d8;font-size:.9rem;margin-bottom:12px;}
+.meta .score{font-weight:700;color:var(--text);}
+.overview{color:#dcdcdc;font-size:.92rem;line-height:1.5;margin:0 0 14px;max-height:4.6em;overflow:hidden;transition:max-height .3s;}
+.overview.open{max-height:50vh;overflow:auto;}
+.more{color:var(--muted);font-size:.82rem;margin-bottom:16px;text-decoration:underline;text-underline-offset:3px;}
+.actions{display:flex;gap:10px;align-items:center;}
+.btn{display:inline-flex;align-items:center;justify-content:center;gap:9px;padding:12px 18px;border-radius:999px;font-weight:700;font-size:.92rem;border:1px solid var(--line);background:var(--panel2);}
+.btn svg{width:18px;height:18px;}
+.btn-accent{background:var(--accent);color:var(--on-accent);border-color:transparent;}
+.like{width:54px;height:54px;flex:0 0 54px;border-radius:50%;border:1px solid var(--line);background:#000a;display:grid;place-items:center;backdrop-filter:blur(6px);}
+.like svg{width:24px;height:24px;transition:transform .15s;}
+.like.on{border-color:transparent;background:#000a;}
+.like.on svg{fill:var(--accent);stroke:var(--accent);transform:scale(1.08);}
+.sentinel{height:1px;}
+
+/* search bar pinned over the reels */
+.topsearch{position:absolute;top:0;left:0;right:0;z-index:6;padding:12px 14px calc(12px + env(safe-area-inset-top));
+  background:linear-gradient(#000c,#0000);pointer-events:none;}
+.topsearch .searchbar{pointer-events:auto;max-width:620px;margin:0 auto;}
+.searchbar .clr{color:var(--muted);font-size:1.3rem;line-height:1;padding:0 2px;}
+.search-grid{padding:76px 14px 96px;}
+
+/* taste chips with counts */
+.taste{display:flex;flex-wrap:wrap;gap:8px;}
+.taste .t{display:inline-flex;align-items:center;gap:8px;padding:8px 13px;border-radius:999px;background:var(--panel2);border:1px solid var(--line);font-size:.85rem;}
+.taste .t b{color:var(--accent);font-weight:800;}
+
+/* change-password form (carded) */
+.pw{background:var(--panel);border:1px solid var(--line);border-radius:14px;padding:16px;}
+.pw .field{margin-bottom:10px;}
+.tag{font-size:.64rem;letter-spacing:.06em;text-transform:uppercase;padding:3px 8px;border-radius:999px;
+  background:var(--accent);color:var(--on-accent);font-weight:800;}
+.iconbtn{width:42px;height:42px;flex:0 0 42px;border-radius:50%;border:1px solid var(--line);background:var(--panel2);
+  display:grid;place-items:center;}
+.iconbtn svg{width:22px;height:22px;}
+.iconbtn:active{transform:scale(.94);}
+.pw label{display:block;font-size:.74rem;color:var(--muted);margin-bottom:5px;letter-spacing:.03em;text-transform:uppercase;}
+.pw-msg{font-size:.82rem;margin:4px 0 2px;min-height:1em;}
+.pw-ok{color:var(--accent);} .pw-bad{color:#ff6b6b;}
+
+/* ---------- Headers / generic ---------- */
+.htitle{font-size:1.5rem;font-weight:800;letter-spacing:-.01em;margin:4px 0 18px;}
+.section-t{font-size:.78rem;letter-spacing:.08em;text-transform:uppercase;color:var(--muted);margin:24px 0 12px;}
+.field input{width:100%;padding:13px 15px;border-radius:10px;background:var(--panel);border:1px solid var(--line);color:var(--text);font-size:.95rem;}
+.field input:focus{outline:none;border-color:var(--text);}
+.searchbar{display:flex;align-items:center;gap:10px;background:var(--panel);border:1px solid var(--line);border-radius:999px;padding:11px 16px;margin-bottom:8px;}
+.searchbar svg{width:18px;height:18px;flex:0 0 18px;color:var(--muted);}
+.searchbar input{flex:1;background:none;border:none;color:var(--text);font-size:.95rem;outline:none;}
+
+.row{display:flex;align-items:center;gap:13px;padding:12px 2px;border-bottom:1px solid var(--line);}
+.ava{width:44px;height:44px;flex:0 0 44px;border-radius:50%;background:var(--panel2);border:1px solid var(--line);display:grid;place-items:center;font-weight:800;color:var(--muted);}
+.row .rc{flex:1;min-width:0;}
+.row .rn{font-weight:700;font-size:.95rem;}
+.row .rs{color:var(--muted);font-size:.82rem;margin-top:1px;}
+.pill{padding:8px 14px;border-radius:999px;font-weight:700;font-size:.82rem;border:1px solid var(--line);background:var(--panel2);}
+.pill-accent{background:var(--accent);color:var(--on-accent);border-color:transparent;}
+.pill:disabled{opacity:.5;}
+
+.grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(104px,1fr));gap:12px;}
+.pcard{position:relative;border-radius:10px;overflow:hidden;background:var(--panel2);border:1px solid var(--line);}
+.pcard img{width:100%;aspect-ratio:2/3;object-fit:cover;background:#111;}
+.pcard .pt{font-size:.74rem;padding:7px 8px;line-height:1.25;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden;}
+
+.empty{text-align:center;color:var(--muted);padding:46px 16px;font-size:.9rem;}
+.spinner{width:26px;height:26px;border:2px solid var(--line);border-top-color:var(--text);border-radius:50%;animation:spin .8s linear infinite;margin:46px auto;}
+@keyframes spin{to{transform:rotate(360deg);}}
+
+/* color picker */
+.swatches{display:flex;flex-wrap:wrap;gap:12px;align-items:center;}
+.sw{width:38px;height:38px;border-radius:50%;border:2px solid var(--line);position:relative;}
+.sw.on{border-color:var(--text);}
+.sw.on::after{content:"";position:absolute;inset:0;margin:auto;width:12px;height:12px;border-radius:50%;background:#000;mix-blend-mode:difference;}
+/* custom-colour swatch: a rainbow ring that clearly means "pick any colour" */
+.sw-custom{width:38px;height:38px;border-radius:50%;position:relative;overflow:hidden;cursor:pointer;
+  background:conic-gradient(from 0deg,#ff4d4d,#f9cb28,#46d369,#3ea6ff,#b388ff,#ff5ca2,#ff4d4d);
+  border:2px solid var(--line);}
+.sw-custom.on{border-color:var(--text);}
+.sw-custom::after{content:"";position:absolute;inset:11px;border-radius:50%;background:var(--panel);}
+.sw-custom input{position:absolute;inset:-6px;width:150%;height:150%;border:none;padding:0;background:none;cursor:pointer;opacity:0;}
+
+/* ---------- Bottom nav (3 tabs, no emoji) ---------- */
+.nav{position:fixed;bottom:0;left:0;right:0;z-index:30;display:flex;justify-content:space-around;padding:10px 6px calc(10px + env(safe-area-inset-bottom));background:#000000e6;backdrop-filter:blur(14px);border-top:1px solid var(--line);}
+.nav button{flex:1;display:flex;flex-direction:column;align-items:center;gap:4px;color:var(--muted);font-size:.68rem;letter-spacing:.02em;padding:4px;}
+.nav button svg{width:24px;height:24px;}
+.nav button.on{color:var(--accent);}
+
+/* ---------- Overlays ---------- */
+.overlay{position:fixed;inset:0;z-index:50;background:#000a;backdrop-filter:blur(4px);display:flex;align-items:flex-end;justify-content:center;}
+.overlay.center{align-items:center;}
+.sheet{width:min(620px,100%);background:var(--panel);border:1px solid var(--line);border-top-left-radius:18px;border-top-right-radius:18px;padding:22px 18px calc(24px + env(safe-area-inset-bottom));max-height:88dvh;overflow:auto;animation:up .24s ease;}
+.overlay.center .sheet{border-radius:16px;margin:16px;animation:pop .2s ease;}
+@keyframes up{from{transform:translateY(40px)}to{transform:none}}
+@keyframes pop{from{transform:scale(.96);opacity:0}to{transform:none;opacity:1}}
+.sheet h2{margin:0 0 4px;font-size:1.25rem;}
+.yt{width:min(860px,94vw);aspect-ratio:16/9;border:1px solid var(--line);border-radius:14px;overflow:hidden;background:#000;}
+.yt iframe{width:100%;height:100%;border:0;}
+.toast{position:fixed;bottom:104px;left:50%;transform:translateX(-50%);z-index:200;background:#fff;color:#000;padding:10px 18px;border-radius:999px;font-size:.86rem;font-weight:600;opacity:0;transition:opacity .25s,transform .25s;pointer-events:none;}
+.toast.show{opacity:1;transform:translateX(-50%) translateY(-6px);}
+
+/* ---------- Auth (black & white) ---------- */
+#auth{position:fixed;inset:0;z-index:100;display:grid;place-items:center;padding:24px;background:var(--bg);}
+.auth-card{width:min(380px,100%);background:var(--panel);border:1px solid var(--line);border-radius:18px;padding:34px 28px;}
+.mark{display:flex;justify-content:center;margin-bottom:22px;}
+.mark svg{width:46px;height:46px;color:var(--text);}
+.tabs{display:flex;gap:4px;background:var(--panel2);padding:4px;border-radius:999px;margin-bottom:20px;}
+.tab{flex:1;padding:10px;border-radius:999px;color:var(--muted);font-weight:700;font-size:.9rem;}
+.tab.on{background:var(--text);color:#000;}
+.auth-card .field{margin-bottom:12px;}
+.auth-card label{display:block;font-size:.74rem;color:var(--muted);margin-bottom:6px;letter-spacing:.03em;text-transform:uppercase;}
+.err{color:#ff6b6b;font-size:.84rem;min-height:1em;margin:4px 0 10px;}
+.block{width:100%;padding:13px;border-radius:10px;font-weight:800;font-size:.96rem;background:var(--text);color:#000;}
+</style>
+</head>
+<body>
+
+<!-- ===== Auth ===== -->
+<div id="auth">
+  <div class="auth-card">
+    <div class="mark"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"><rect x="3" y="4" width="18" height="16" rx="2"/><path d="M3 9h18M8 4v16M16 4v16"/><path d="M5.5 6.5h0M5.5 11.5h0M5.5 16.5h0M18.5 6.5h0M18.5 11.5h0M18.5 16.5h0" stroke-width="2" stroke-linecap="round"/></svg></div>
+    <div class="tabs"><button class="tab on" data-mode="login">Sign in</button><button class="tab" data-mode="register">Register</button></div>
+    <div id="reg-email" class="field hidden"><label>Email</label><input id="a-email" type="email" placeholder="you@email.com"></div>
+    <div class="field"><label>Username</label><input id="a-user" type="text" autocomplete="username"></div>
+    <div class="field"><label>Password</label><input id="a-pass" type="password" autocomplete="current-password"></div>
+    <div class="err" id="a-err"></div>
+    <button class="block" id="a-submit">Sign in</button>
+    <div id="a-note" style="margin-top:14px;text-align:center;color:var(--muted);font-size:.76rem"></div>
+  </div>
+</div>
+
+<!-- ===== App ===== -->
+<div id="app" class="hidden">
+  <div id="view"></div>
+  <nav class="nav">
+    <button data-tab="discover" class="on">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7"><circle cx="12" cy="12" r="9"/><path d="M15.5 8.5l-2 5-5 2 2-5 5-2z" fill="currentColor" stroke="none"/></svg>Discover</button>
+    <button data-tab="friends">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7"><circle cx="9" cy="8" r="3.2"/><path d="M3.5 19a5.5 5.5 0 0 1 11 0"/><path d="M16 5.5a3 3 0 0 1 0 5.8M17 14.2a5.5 5.5 0 0 1 3.5 4.8"/></svg>Friends</button>
+    <button data-tab="profile">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7"><circle cx="12" cy="8" r="3.6"/><path d="M5 20a7 7 0 0 1 14 0"/></svg>Profile</button>
+  </nav>
+</div>
+
+<div id="toast" class="toast"></div>
+
+<script>
+"use strict";
+const API = new URL('api/index.php', location.href).href;
+let TOKEN = localStorage.getItem('tok') || '';
+let ME = null;
+
+/* icons */
+const IC = {
+  // "Like" uses a film/clapperboard mark instead of a heart.
+  film:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linejoin="round"><path d="M4 9.5h16V19a1 1 0 0 1-1 1H5a1 1 0 0 1-1-1V9.5z"/><path d="M3.3 9.5 4.6 5l15 .6 1.1 3.9z"/><path d="m7.2 5.2 1.4 4.3M12 5l1.4 4.4M16.6 5.2 18 9.5"/></svg>',
+  play:'<svg viewBox="0 0 24 24" fill="currentColor"><path d="M8 5v14l11-7z"/></svg>',
+  search:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><circle cx="11" cy="11" r="7"/><path d="M21 21l-4-4"/></svg>',
+  gear:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"><circle cx="12" cy="12" r="3.3"/><path d="M12 2.6v2.6M12 18.8v2.6M21.4 12h-2.6M5.2 12H2.6M18.6 5.4l-1.9 1.9M7.3 16.7l-1.9 1.9M18.6 18.6l-1.9-1.9M7.3 7.3 5.4 5.4" stroke-linecap="round"/></svg>'
+};
+
+/* ---------- accent colour ---------- */
+function luminance(hex){ const n=parseInt(hex.slice(1),16); const r=(n>>16)&255,g=(n>>8)&255,b=n&255;
+  return (0.299*r+0.587*g+0.114*b)/255; }
+function setAccent(hex){
+  document.documentElement.style.setProperty('--accent', hex);
+  document.documentElement.style.setProperty('--on-accent', luminance(hex)>0.6 ? '#000':'#fff');
+  localStorage.setItem('accent', hex);
+}
+setAccent(localStorage.getItem('accent') || '#ffffff');
+
+/* ---------- api ---------- */
+async function api(path,{method='GET',body=null}={}){
+  const o={method,headers:{}};
+  if(TOKEN) o.headers['Authorization']='Bearer '+TOKEN;
+  if(body!==null){o.headers['Content-Type']='application/json';o.body=JSON.stringify(body);}
+  const r=await fetch(API+path,o);
+  let d=null; try{d=await r.json();}catch(e){}
+  if(r.status===401 && ME) logout();
+  if(!r.ok) throw new Error((d&&d.error)||('HTTP '+r.status));
+  return d;
+}
+const esc=s=>String(s==null?'':s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+function toast(m){const t=document.getElementById('toast');t.textContent=m;t.classList.add('show');clearTimeout(t._t);t._t=setTimeout(()=>t.classList.remove('show'),1700);}
+
+/* ---------- auth ---------- */
+let authMode='login';
+document.querySelectorAll('.tab').forEach(t=>t.addEventListener('click',()=>{
+  document.querySelectorAll('.tab').forEach(x=>x.classList.remove('on'));t.classList.add('on');
+  authMode=t.dataset.mode;
+  document.getElementById('reg-email').classList.toggle('hidden',authMode!=='register');
+  document.getElementById('a-submit').textContent=authMode==='register'?'Create account':'Sign in';
+  document.getElementById('a-err').textContent='';
+  document.getElementById('a-note').textContent=authMode==='register'?'The first account to register becomes the admin.':'';
+}));
+document.getElementById('a-submit').addEventListener('click',doAuth);
+document.getElementById('a-pass').addEventListener('keydown',e=>{if(e.key==='Enter')doAuth();});
+async function doAuth(){
+  const err=document.getElementById('a-err');err.textContent='';
+  const username=document.getElementById('a-user').value.trim();
+  const password=document.getElementById('a-pass').value;
+  const email=document.getElementById('a-email').value.trim();
+  try{
+    const path=authMode==='register'?'/auth/register':'/auth/login';
+    const payload=authMode==='register'?{username,email,password}:{username,password};
+    const d=await api(path,{method:'POST',body:payload});
+    TOKEN=d.token; localStorage.setItem('tok',TOKEN); ME=d.user;
+    await loadAccent(); enterApp();
+  }catch(e){err.textContent=e.message;}
+}
+function logout(){
+  api('/auth/logout',{method:'POST'}).catch(()=>{});
+  TOKEN='';ME=null;localStorage.removeItem('tok');
+  document.getElementById('app').classList.add('hidden');
+  document.getElementById('auth').classList.remove('hidden');
+}
+async function loadAccent(){ try{ const s=await api('/me/settings'); setAccent(s.settings.accent_color||'#ffffff'); }catch(e){} }
+
+(async function boot(){
+  if(TOKEN){ try{ ME=(await api('/auth/me')).user; await loadAccent(); enterApp(); }catch(e){ TOKEN=''; localStorage.removeItem('tok'); } }
+})();
+function enterApp(){
+  document.getElementById('auth').classList.add('hidden');
+  document.getElementById('app').classList.remove('hidden');
+  switchTab('discover');
+}
+
+/* ---------- nav ---------- */
+const viewEl=document.getElementById('view');
+document.querySelectorAll('.nav button').forEach(b=>b.addEventListener('click',()=>switchTab(b.dataset.tab)));
+function switchTab(name){
+  document.querySelectorAll('.nav button').forEach(b=>b.classList.toggle('on',b.dataset.tab===name));
+  if(name==='discover') renderDiscover();
+  if(name==='friends') renderFriends();
+  if(name==='profile') renderProfile();
+}
+function loading(){ viewEl.innerHTML='<div class="view"><div class="spinner"></div></div>'; }
+
+/* ===================== DISCOVER (infinite reels) ===================== */
+let feedPage=0, feedLoading=false, feedObserver=null, searchTimer=null, feedSeed=0, feedSeen=new Set(), feedEnded=false;
+function renderDiscover(){
+  viewEl.innerHTML=`<div class="view" id="reels"></div>
+    <div class="topsearch"><div class="searchbar">${IC.search}<input id="movsearch" placeholder="Search movies" autocomplete="off"><button id="clrs" class="clr hidden">×</button></div></div>`;
+  const input=document.getElementById('movsearch'), clr=document.getElementById('clrs');
+  input.addEventListener('input',()=>{ clearTimeout(searchTimer); const q=input.value.trim();
+    clr.classList.toggle('hidden',!q);
+    searchTimer=setTimeout(()=> q ? runSearch(q) : startFeed(), 300); });
+  clr.addEventListener('click',()=>{ input.value=''; clr.classList.add('hidden'); startFeed(); });
+  startFeed();
+}
+const reelsWrap=()=>document.getElementById('reels');
+async function startFeed(){
+  if(feedObserver) feedObserver.disconnect();
+  const wrap=reelsWrap(); wrap.innerHTML=''; wrap.scrollTop=0;
+  feedPage=0; feedLoading=false; feedEnded=false; feedSeen=new Set();
+  feedSeed=Math.floor(Math.random()*480);           // start somewhere new each visit
+  const sentinel=document.createElement('div'); sentinel.className='sentinel';
+  wrap.appendChild(sentinel);
+  await loadMore(wrap,sentinel);
+  feedObserver=new IntersectionObserver(es=>es.forEach(e=>{if(e.isIntersecting)loadMore(wrap,sentinel);}),{root:wrap,rootMargin:'600px'});
+  feedObserver.observe(sentinel);
+}
+async function loadMore(wrap,sentinel){
+  if(feedLoading||feedEnded) return; feedLoading=true;
+  try{
+    feedPage++;
+    const d=await api('/feed?page='+feedPage+'&seed='+feedSeed);
+    const movies=d.movies||[];
+    // Never show the same movie twice while scrolling.
+    movies.filter(m=>!feedSeen.has(m.id)).forEach(m=>{ feedSeen.add(m.id); wrap.insertBefore(reel(m),sentinel); });
+    if(movies.length===0){
+      feedEnded=true; if(feedObserver) feedObserver.disconnect();
+      if(feedSeen.size){ const end=document.createElement('div'); end.className='empty'; end.style.padding='34px 20px';
+        end.innerHTML="You've reached the end of the demo movies.<br>Add a free TMDB API key for an endless, always-new catalogue.";
+        wrap.insertBefore(end,sentinel); }
+    }
+  }catch(e){ if(feedPage===1) wrap.innerHTML='<div class="empty" style="padding-top:120px">'+esc(e.message)+'</div>'; }
+  feedLoading=false;
+}
+async function runSearch(q){
+  if(feedObserver) feedObserver.disconnect();
+  const wrap=reelsWrap(); wrap.innerHTML=''; wrap.scrollTop=0;
+  try{ const movies=(await api('/search?q='+encodeURIComponent(q))).movies||[];
+    if(!movies.length){ wrap.innerHTML='<div class="empty" style="padding-top:120px">No movies found for “'+esc(q)+'”.</div>'; return; }
+    movies.forEach(m=>wrap.appendChild(reel(m)));
+  }catch(e){ wrap.innerHTML='<div class="empty" style="padding-top:120px">'+esc(e.message)+'</div>'; }
+}
+function reel(m){
+  const el=document.createElement('section'); el.className='reel';
+  const bg=m.backdrop_url||m.poster_url;
+  el.innerHTML=`
+    <div class="bd" style="background-image:url('${esc(bg)}')"></div>
+    <div class="scrim"></div>
+    <div class="reel-inner">
+      <div class="reel-main">
+        <div class="genres">${(m.genres||[]).slice(0,3).map(g=>`<span class="gchip">${esc(g)}</span>`).join('')}</div>
+        <h1>${esc(m.title)}</h1>
+        <div class="meta">${m.year?`<span>${m.year}</span>`:''}${m.rating?`<span class="score">${(+m.rating).toFixed(1)}</span>`:''}</div>
+        <p class="overview">${esc(m.overview)}</p>
+        <div class="more">More</div>
+        <div class="actions">
+          <button class="like ${m.liked?'on':''}" aria-label="Like">${IC.film}</button>
+          <button class="btn btn-accent trailer">${IC.play}<span>Trailer</span></button>
+        </div>
+      </div>
+      <img class="poster-mini" src="${esc(m.poster_url)}" alt="" onerror="this.style.visibility='hidden'">
+    </div>`;
+  // Backdrop with graceful fallback: backdrop -> poster -> gradient (never flat black).
+  const bdEl=el.querySelector('.bd');
+  if(bg){ const probe=new Image();
+    probe.onerror=()=>{ if(m.poster_url && bg!==m.poster_url){ bdEl.style.backgroundImage=`url('${m.poster_url}')`; }
+      else { bdEl.style.backgroundImage=''; bdEl.classList.add('noimg'); } };
+    probe.src=bg;
+  } else { bdEl.style.backgroundImage=''; bdEl.classList.add('noimg'); }
+  const ov=el.querySelector('.overview'),more=el.querySelector('.more');
+  more.addEventListener('click',()=>{ov.classList.toggle('open');more.textContent=ov.classList.contains('open')?'Less':'More';});
+  el.querySelector('.trailer').addEventListener('click',()=>openTrailer(m));
+  el.querySelector('.like').addEventListener('click',async e=>{
+    const b=e.currentTarget;
+    try{ const d=await api('/like/'+m.id,{method:'POST',body:m}); m.liked=d.liked; b.classList.toggle('on',d.liked); if(d.liked)toast('Liked'); }
+    catch(err){toast(err.message);}
+  });
+  return el;
+}
+async function openTrailer(m){
+  let yt=''; try{ yt=(await api('/trailer/'+m.id)).youtube_id; }catch(e){}
+  if(!yt){ toast('No trailer available'); return; }
+  const o=overlay(`<div class="yt"><iframe src="https://www.youtube.com/embed/${esc(yt)}?autoplay=1&rel=0" allow="autoplay;encrypted-media" allowfullscreen></iframe></div>`,true);
+}
+
+/* ===================== FRIENDS ===================== */
+async function renderFriends(){
+  loading();
+  let friends=[],reqs=[];
+  try{ [friends,reqs]=await Promise.all([api('/me/friends').then(d=>d.friends),api('/me/requests').then(d=>d.requests)]); }catch(e){}
+  const root=setView(`
+    <div class="htitle">Friends</div>
+    <div class="searchbar">${IC.search}<input id="fs" placeholder="Find people by name"></div>
+    <div id="fres"></div>
+    ${reqs.length?`<div class="section-t">Requests</div>${reqs.map(u=>rowUser(u,'request')).join('')}`:''}
+    <div class="section-t">Your friends · ${friends.length}</div>
+    ${friends.length?friends.map(u=>rowUser(u,'friend')).join(''):'<div class="empty">No friends yet. Search above to add people.<br>Tip: register a second account to try it.</div>'}
+  `);
+  bindRows(root);
+  const si=root.querySelector('#fs'); let t;
+  si.addEventListener('input',()=>{clearTimeout(t);t=setTimeout(async()=>{
+    const q=si.value.trim(); const box=root.querySelector('#fres');
+    if(!q){box.innerHTML='';return;}
+    try{ const us=(await api('/users?q='+encodeURIComponent(q))).users;
+      box.innerHTML=us.length?us.map(u=>rowUser(u, u.is_friend?'friend':(u.pending?'pending':'add'))).join(''):'<div class="empty">No matches.</div>';
+      bindRows(box);
+    }catch(e){}
+  },250);});
+}
+function rowUser(u,kind){
+  let btn='';
+  if(kind==='add') btn=`<button class="pill pill-accent" data-add="${u.id}">Add</button>`;
+  else if(kind==='pending') btn=`<button class="pill" disabled>Requested</button>`;
+  else if(kind==='request') btn=`<button class="pill pill-accent" data-accept="${u.id}">Accept</button>`;
+  else btn=`<button class="pill" data-view="${u.id}">View</button>`;
+  return `<div class="row"><div class="ava">${esc((u.display_name||'?')[0].toUpperCase())}</div>
+    <div class="rc"><div class="rn">${esc(u.display_name)}</div><div class="rs">@${esc(u.username)}</div></div>${btn}</div>`;
+}
+function bindRows(root){
+  root.querySelectorAll('[data-add]').forEach(b=>b.addEventListener('click',async()=>{try{await api('/friends/'+b.dataset.add,{method:'POST'});b.textContent='Requested';b.disabled=true;b.classList.remove('pill-accent');toast('Request sent');}catch(e){toast(e.message);}}));
+  root.querySelectorAll('[data-accept]').forEach(b=>b.addEventListener('click',async()=>{try{await api('/friends/'+b.dataset.accept+'/accept',{method:'POST'});toast('Friend added');renderFriends();}catch(e){toast(e.message);}}));
+  root.querySelectorAll('[data-view]').forEach(b=>b.addEventListener('click',()=>openProfile(+b.dataset.view)));
+}
+async function openProfile(id){
+  let u; try{ u=(await api('/users/'+id)).user; }catch(e){ return; }
+  overlay(`<div class="sheet">
+    <div class="row" style="border:none;padding-top:0"><div class="ava" style="width:56px;height:56px;flex:0 0 56px;font-size:1.2rem">${esc((u.display_name||'?')[0].toUpperCase())}</div>
+      <div class="rc"><div class="rn" style="font-size:1.15rem">${esc(u.display_name)}</div><div class="rs">@${esc(u.username)}</div></div></div>
+    <div class="section-t">Likes these kinds of movies</div>
+    ${u.taste&&u.taste.length?`<div class="taste">${u.taste.map(t=>`<span class="t">${esc(t.name)} <b>${t.count}</b></span>`).join('')}</div>`:'<div class="empty" style="padding:14px">No likes yet.</div>'}
+    <div class="section-t">Movies they like</div>
+    ${u.likes&&u.likes.length?`<div class="grid">${u.likes.map(pcard).join('')}</div>`:'<div class="empty" style="padding:14px">Nothing yet.</div>'}
+  </div>`);
+}
+function pcard(m){ return `<div class="pcard">${m.poster_url?`<img src="${esc(m.poster_url)}" alt="" onerror="this.style.display='none'">`:''}<div class="pt">${esc(m.title)}</div></div>`; }
+/** One row in the admin "Registered users" list: username + email. */
+function adminRow(u){ return `<div class="row"><div class="ava">${esc((u.username||'?')[0].toUpperCase())}</div>
+  <div class="rc"><div class="rn">${esc(u.username)}${u.is_admin?' <span class="tag">admin</span>':''}</div><div class="rs">${esc(u.email)}</div></div></div>`; }
+
+/* ===================== PROFILE ===================== */
+const PRESETS=['#ffffff','#e50914','#f5a623','#46d369','#3ea6ff','#b388ff','#ff5ca2'];
+const isPreset=hex=>PRESETS.some(c=>c.toLowerCase()===hex.toLowerCase());
+async function renderProfile(){
+  loading();
+  let prof={likes:[],taste:[]}, accent=localStorage.getItem('accent')||'#ffffff', admins=null;
+  try{ [prof,accent]=await Promise.all([api('/users/'+ME.id).then(d=>d.user),api('/me/settings').then(d=>d.settings.accent_color)]); }catch(e){}
+  if(ME.is_admin){ try{ admins=(await api('/admin/users')).users; }catch(e){} }
+  setAccent(accent);
+  const likes=prof.likes||[], taste=prof.taste||[];
+  const root=setView(`
+    <div class="row" style="border:none"><div class="ava" style="width:56px;height:56px;flex:0 0 56px;font-size:1.2rem">${esc((ME.display_name||'?')[0].toUpperCase())}</div>
+      <div class="rc"><div class="rn" style="font-size:1.2rem">${esc(ME.display_name)}</div><div class="rs">@${esc(ME.username)}</div></div>
+      <button class="iconbtn" id="settings-btn" title="Settings">${IC.gear}</button></div>
+
+    <div class="section-t">Your taste — top interests</div>
+    ${taste.length?`<div class="taste">${taste.map(t=>`<span class="t">${esc(t.name)} <b>${t.count}</b></span>`).join('')}</div>`:'<div class="empty" style="padding:14px 0">Like movies and your top genres show up here.</div>'}
+
+    <div class="section-t">Appearance — accent colour</div>
+    <div class="swatches" id="sw">
+      ${PRESETS.map(c=>`<button class="sw ${c.toLowerCase()===accent.toLowerCase()?'on':''}" data-c="${c}" style="background:${c}"></button>`).join('')}
+      <label class="sw-custom ${isPreset(accent)?'':'on'}" title="Custom colour"><input type="color" id="custom" value="${/^#[0-9a-fA-F]{6}$/.test(accent)?accent:'#ffffff'}"></label>
+    </div>
+
+    <div class="section-t">Movies you like · ${likes.length}</div>
+    ${likes.length?`<div class="grid">${likes.map(pcard).join('')}</div>`:'<div class="empty">Tap the film icon on any movie in Discover.</div>'}
+
+    ${admins?`<div class="section-t">Registered users · ${admins.length}</div>${admins.map(adminRow).join('')}`:''}
+
+    <button class="block" style="margin-top:26px;background:var(--panel);color:var(--text);border:1px solid var(--line)" id="logout">Log out</button>
+    <div style="height:12px"></div>
+  `);
+  root.querySelectorAll('.sw[data-c]').forEach(b=>b.addEventListener('click',()=>applyAccent(b.dataset.c,root)));
+  root.querySelector('#custom').addEventListener('input',e=>applyAccent(e.target.value,root));
+  root.querySelector('#settings-btn').addEventListener('click',openSettings);
+  root.querySelector('#logout').addEventListener('click',logout);
+}
+/** Settings sheet: change email and password (both confirm the current password). */
+function openSettings(){
+  const o=overlay(`<div class="sheet">
+    <h2>Settings</h2>
+    <div class="section-t">Change email</div>
+    <div class="pw">
+      <div class="field"><label>New email</label><input type="email" id="se-email" value="${esc(ME.email||'')}"></div>
+      <div class="field"><label>Current password</label><input type="password" id="se-pw" autocomplete="current-password"></div>
+      <div class="pw-msg" id="se-msg"></div>
+      <button class="pill pill-accent" id="se-go">Update email</button>
+    </div>
+    <div class="section-t">Change password</div>
+    <div class="pw">
+      <div class="field"><label>Current password</label><input type="password" id="pw-cur" autocomplete="current-password"></div>
+      <div class="field"><label>New password</label><input type="password" id="pw-new" autocomplete="new-password"></div>
+      <div class="pw-msg" id="pw-msg"></div>
+      <button class="pill pill-accent" id="pw-go">Update password</button>
+    </div>
+  </div>`);
+  o.querySelector('#se-go').addEventListener('click',changeEmail);
+  o.querySelector('#pw-go').addEventListener('click',changePassword);
+}
+/** Change the account email after confirming the current password. */
+async function changeEmail(){
+  const em=document.getElementById('se-email'), pw=document.getElementById('se-pw'), msg=document.getElementById('se-msg');
+  msg.textContent=''; msg.className='pw-msg';
+  if(!em.value||!pw.value){ msg.textContent='Fill in both fields.'; msg.classList.add('pw-bad'); return; }
+  try{ const d=await api('/me/email',{method:'PUT',body:{email:em.value.trim(),current_password:pw.value}});
+    ME.email=d.email; msg.textContent='Email updated.'; msg.classList.add('pw-ok'); pw.value=''; }
+  catch(e){ msg.textContent=e.message; msg.classList.add('pw-bad'); }
+}
+async function applyAccent(hex,root){
+  setAccent(hex);
+  root.querySelectorAll('.sw[data-c]').forEach(s=>s.classList.toggle('on',s.dataset.c.toLowerCase()===hex.toLowerCase()));
+  const custom=root.querySelector('.sw-custom'); if(custom) custom.classList.toggle('on',!isPreset(hex));
+  try{ await api('/me/settings',{method:'PUT',body:{accent_color:hex}}); }catch(e){ toast(e.message); }
+}
+/** Change the account password after confirming the current one. */
+async function changePassword(){
+  const cur=document.getElementById('pw-cur'), nw=document.getElementById('pw-new'), msg=document.getElementById('pw-msg');
+  msg.textContent=''; msg.className='pw-msg';
+  if(!cur.value||!nw.value){ msg.textContent='Fill in both fields.'; msg.classList.add('pw-bad'); return; }
+  try{ await api('/me/password',{method:'PUT',body:{current_password:cur.value,new_password:nw.value}});
+    msg.textContent='Password updated.'; msg.classList.add('pw-ok'); cur.value=''; nw.value=''; }
+  catch(e){ msg.textContent=e.message; msg.classList.add('pw-bad'); }
+}
+
+/* ---------- helpers ---------- */
+function setView(html){ viewEl.innerHTML=`<div class="view pad">${html}</div>`; return viewEl.firstElementChild; }
+function overlay(html,center){ const o=document.createElement('div'); o.className='overlay'+(center?' center':''); o.innerHTML=html;
+  document.body.appendChild(o); o.addEventListener('click',e=>{if(e.target===o)o.remove();}); return o; }
+</script>
+</body>
+</html>
